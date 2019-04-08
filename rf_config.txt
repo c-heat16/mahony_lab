@@ -1,0 +1,4 @@
+model_save_path_tmplt=cell{}_state{}_hist{}.pkl
+pred_file_tmplt=cell{}_state{}_hist{}_preds.csv
+logging=True
+model_type=log_reg

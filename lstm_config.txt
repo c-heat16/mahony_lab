@@ -1,0 +1,17 @@
+seq_length=1
+balance_fraction=.5
+n_lstm_cells=1
+n_lstm_nodes=2
+lstm_input_dropout=.5
+lstm_output_dropout=.5
+dense_l1=.001
+dense_l2=.001
+batch_size=256
+learning_rate=0.001
+tb_log_dir=tb_logs
+early_stop_patience=2
+early_stop_tol=0.00001
+model_save_path_tmplt=cell{}_state{}_hist{}_epoch{}
+pred_file_tmplt=cell{}_state{}_hist{}_epoch{}_preds.csv
+max_num_equal=5
+logging=True

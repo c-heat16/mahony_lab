@@ -1,0 +1,8 @@
+model_save_path_tmplt=cell{}_state{}_hist{}.pkl
+pred_file_tmplt=cell{}_state{}_hist{}_preds.csv
+logging=True
+lin_model_type=rf
+n_trees=25
+pre_cluster=True
+n_clusters=8
+ohe_cluster_labels=False
