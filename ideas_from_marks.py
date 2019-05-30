@@ -212,11 +212,11 @@ if __name__ == '__main__':
 											if config_dict['heatmap_marks'] and config_dict['model_type'] == 'lstm':
 												cell_pos_signal_means.append(np.vstack(this_model.pos_feature_signal))
 												cell_neg_signal_means.append(np.vstack(this_model.neg_feature_signal))
-											#if config_dict['model_type'] == 'lstm' or 'dense' in config_dict['model_type']:
-											#	this_model.create_tf_datasets(timeit=True)
+											if config_dict['model_type'] == 'lstm' or config_dict['model_type'] == 'tf_dense':
+												this_model.create_tf_datasets(timeit=True)
 											this_model.build_model(timeit=True)
 											this_model.train()
-											if config_dict['model_type'] == 'lstm' or config_dict['model_type'] == 'dense':
+											if config_dict['model_type'] == 'lstm' or config_dict['model_type'] == 'tf_dense':
 												this_model.reset()
 										if config_dict['val']:
 											val_model_dir = os.path.join(config_dict['val_model_base_dir'], cell_type, \

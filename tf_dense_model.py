@@ -104,18 +104,19 @@ class tf_dense_model(dense_model.dense_model):
 			training_stats = [] # loss, acc, auprc, auroc
 
 			while cont_training:
-				#print('Epoch {}...'.format(curr_epoch))
+				# print('Epoch {}...'.format(curr_epoch))
 				self.initialize_train(sess)
 				epoch_start_time = time.time()
+				print('epoch: {} train_y_state.shape: {}'.format(curr_epoch, self.train_y_state.shape))
 				for batch, start_idx in enumerate(range(0, self.train_y_state.shape[0], self.config['batch_size'])):
 					batch_start_time = time.time()
 					sess.run(self.training_op, feed_dict={self.dense_dropout: self.config['dense_dropout'], self.softmax_pos_weight_ph: self.calculated_softmax_pos_weight}, options=self.run_options)
-					if batch % 1000 == 0:
+					if batch % 100 == 0:
 						print('Epoch {0} batch {1} of {2} epoch time: {3:3.4f}s...'.format(curr_epoch, batch, int(self.train_y_state.shape[0] // self.config['batch_size']), time.time() - batch_start_time), end='\r')
 
-				#print('Init test...')
+				# print('Init test...')
 				self.initialize_test(sess) # feed_dict={X:test_features_state, y_raw:test_labels_state}
-				#print('Performing test...')
+				# print('Performing test...')
 				epoch_loss, acc_test, soft_preds, summary = sess.run([self.loss, self.accuracy, self.softmax, self.merged], feed_dict={self.dense_dropout: 0.0}, options=self.run_options)
 				ep_auprc = self.calc_auprc(self.test_y_state[:,1], soft_preds[:,1])
 				ep_auroc = self.calc_auroc(self.test_y_state[:,1], soft_preds[:,1])
@@ -123,19 +124,20 @@ class tf_dense_model(dense_model.dense_model):
 
 				training_stats.append([epoch_loss, acc_test, ep_auprc, ep_auroc])
 
-				#print('Adding summaries...')
+				# print('Adding summaries...')
 				self.train_writer.add_summary(summary, curr_epoch)
 				print('Cell: {0} State: {1} Epoch: {2:4d} Loss: {3:9.4f} Acc: {4:3.5f} AUPRC: {8:1.4f} AUROC: {9:1.4f} Patience: {6} n_train: {7} Nodes: {10} Pos_weight: {11} Time: {5:6.2f}s'.format(self.cell_type, str(self.state), curr_epoch, epoch_loss, acc_test, time.time() - epoch_start_time, epochs_over_tolerance, self.train_y_state.shape[0], ep_auprc, ep_auroc, '-'.join([str(n) for n in self.num_node_list]), self.calculated_softmax_pos_weight))
-				#print('Cell: {0} State: {1} Epoch: {2:4d} Loss: {3:9.4f} Accuracy: {4:3.2f} Elapsed Time: {5:6.2f}s'.format(self.cell_type, str(self.state), curr_epoch, epoch_loss, acc_test, time.time() - epoch_start_time))
-				#print('soft_preds:\n{}'.format(soft_preds))
-				#input('...')
-				if curr_epoch == 0:
+				# print('Cell: {0} State: {1} Epoch: {2:4d} Loss: {3:9.4f} Accuracy: {4:3.2f} Elapsed Time: {5:6.2f}s'.format(self.cell_type, str(self.state), curr_epoch, epoch_loss, acc_test, time.time() - epoch_start_time))
+				# print('soft_preds:\n{}'.format(soft_preds))
+				# input('...')
+				if curr_epoch < self.config.get('epochs_before_monitor_early_stop', 0):
 					saver.save(sess, self.state_model_dir.format(self.cell_type, self.state, '-'.join(self.current_hist_marks), curr_epoch, self.model_init_time))
 					best_loss = epoch_loss
+					self.resample_train_set(soft_preds[:, 1], curr_epoch)
 				else:
 					if (best_loss - epoch_loss) / best_loss >= self.config['early_stop_tol_pct'] and best_loss - epoch_loss >= self.config['early_stop_tol_mag']:
 						epochs_over_tolerance = 0
-						#num_equal = 0
+						# num_equal = 0
 						best_loss = epoch_loss
 					else:
 						epochs_over_tolerance += 1
@@ -144,15 +146,15 @@ class tf_dense_model(dense_model.dense_model):
 						model_elapsed_time = time.time() - model_start_time_elapsed
 						cont_training = False
 						print('Early stopping... analyzing preds... Elapsed time: {0:6.2f}s...'.format(model_elapsed_time))
-						auprc = self.calc_auprc(self.test_y_state[:,1], soft_preds[:,1])
-						auroc = self.calc_auroc(self.test_y_state[:,1], soft_preds[:,1])
+						auprc = self.calc_auprc(self.test_y_state[:, 1], soft_preds[:, 1])
+						auroc = self.calc_auroc(self.test_y_state[:, 1], soft_preds[:, 1])
 						binary_preds = np.argmax(soft_preds, axis=1).reshape(-1, 1)
-						f1 = self.calc_f1(self.test_y_state[:,1], binary_preds.reshape(-1))
-						ari = self.calc_ari(self.test_y_state[:,1], binary_preds.reshape(-1))
+						f1 = self.calc_f1(self.test_y_state[:, 1], binary_preds.reshape(-1))
+						ari = self.calc_ari(self.test_y_state[:, 1], binary_preds.reshape(-1))
 						tot_train_samples = self.train_y_state.shape[0]
-						num_true_in_train = self.train_y_state[self.train_y_state[:,1] == 1, 1].shape[0]
+						num_true_in_train = self.train_y_state[self.train_y_state[:, 1] == 1, 1].shape[0]
 
-						#self.script_parms = ['cell', 'hist_marks', 'chrom', 'ep_state', 'acc', 'auprc', 'auroc', 'adj_rand_idx', 'f1_score', 'true_in_train', 'tot_train_samples', 'elapsed_time']
+						# self.script_parms = ['cell', 'hist_marks', 'chrom', 'ep_state', 'acc', 'auprc', 'auroc', 'adj_rand_idx', 'f1_score', 'true_in_train', 'tot_train_samples', 'elapsed_time']
 						these_parms = [self.cell_type, '-'.join(self.current_hist_marks), self.config['chrom_id'], self.state, acc_test, auprc, auroc, ari, f1, curr_epoch, num_true_in_train, tot_train_samples, '-'.join([str(n) for n in self.num_node_list]), model_elapsed_time]
 						these_parms.extend([v for v in self.config.values()])
 
@@ -162,7 +164,7 @@ class tf_dense_model(dense_model.dense_model):
 
 						print('Saving predictions...')
 						# Save predictions and softmax
-						write_data = np.concatenate([self.test_y_cat_state, self.test_y_state[:,1].reshape(-1, 1), binary_preds, soft_preds], axis=1)
+						write_data = np.concatenate([self.test_y_cat_state.reshape(-1, 1), self.test_y_state[:,1].reshape(-1, 1), binary_preds, soft_preds], axis=1)
 						print('Saving write_data to \'{}\'...'.format(self.config['pred_file_tmplt'].format(self.cell_type, self.state, '-'.join(self.current_hist_marks), curr_epoch, self.model_init_time)))
 						np.savetxt(self.state_pred_dir.format(self.cell_type, self.state, '-'.join(self.current_hist_marks), str(curr_epoch), self.model_init_time), write_data, delimiter=',')
 
@@ -176,10 +178,10 @@ class tf_dense_model(dense_model.dense_model):
 							for stat_set in training_stats:
 								f.write('{}\n'.format(','.join([str(v) for v in stat_set])))
 
-
-
 					else:
 						saver.save(sess, self.state_model_dir.format(self.cell_type, self.state, '-'.join(self.current_hist_marks), curr_epoch, self.model_init_time), global_step=curr_epoch, write_meta_graph=False)
+						self.resample_train_set(soft_preds[:, 1], curr_epoch)
 
 				curr_epoch += 1
 		self.reset()
+
